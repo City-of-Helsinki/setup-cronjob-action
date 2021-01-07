@@ -1,0 +1,52 @@
+name: 'Cronjob Setup'
+description: 'Action to set up cronjob to Kubernetes namespace'
+inputs:
+  kubeconfig_raw:
+    description: 'Kubeconfig as a text. Used to authenticate to Kubernetes cluster'
+    required: true
+  target_namespace:
+    description: "Namespace of where cronjob is deployed to"
+    required: true
+  secret_name:
+    description: 'Secret including environment variables for the job'
+    default: ''
+  configmap_name: 
+    description: "ConfigMap including environment variables for the job"
+    default: ''
+  image_repository: 
+    description: "Image to use in job"
+    default: "busybox"
+  image_tag: 
+    description: "Image tag to use in job"
+    default: "latest"
+  schedule: 
+    description: "Schedule of job to run. Remember to give time according Kubernetes node timezone (preferably UTC)"
+    default: "0 0 * * *"
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup kubectl
+      run: |
+          echo "${KUBECONFIG_RAW}" > $(pwd)/kubeconfig
+          echo "KUBECONFIG=$(pwd)/kubeconfig" >> $GITHUB_ENV
+      shell: bash
+      env:
+        KUBECONFIG_RAW: ${{ inputs.kubeconfig_raw }}
+
+    - name: Setup helm
+      run: |
+          curl https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
+          helm repo add city-of-helsinki https://city-of-helsinki.github.io/managed-k8s-oidc-auth/
+      shell: bash
+
+    - name: Setup cronjob
+      run:  |
+        helm upgrade -i "${{ inputs.image_name }}-action-cronjob" city-of-helsinki/cronjob \
+        --namespace "${{ inputs.image_repository }}" \
+        --create-namespace \
+        --set image.repository="${{ inputs.image_repository}}" \
+        --set image.tag="${{ inputs.image_tag}}" \
+        --set image.schedule="${{ inputs.schedule }}" \
+        --set image.envSecret="${{ inputs.secret_name}}" \
+        --set image.envConfigMap="${{ inputs.configmap_name}}"
+      shell: bash
