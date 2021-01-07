@@ -23,17 +23,21 @@ inputs:
     description: "Schedule of job to run. Remember to give time according Kubernetes node timezone (preferably UTC)"
     default: "0 0 * * *"
   command:
-    description: "Command (Entrypoint in container image) to use. Should be given with array notation"
-    default: "['bin/sh']"
+    description: "Command (Entrypoint in container image) to use. Note notation with curly braces"
+    default: "{bin/sh}"
   args:
-    description: "Arguments (Command in container image) to use. Should be given with array notation"
-    default: "['-c', 'date; echo Hello from the Kubernetes cluster']"
+    description: "Arguments (Command in container image) to use. Note notation with curly braces"
+    default: "{-c,date; echo Hello from the Kubernetes cluster}"
+  envs:
+    description: "Direct environment variables to job. Note format (https://helm.sh/docs/intro/using_helm/#the-format-and-limitations-of---set). Key is `env.<desired_key>`"
+    default: ""
 runs:
   using: 'composite'
   steps:
     - name: Setup kubectl
       run: |
           echo "${KUBECONFIG_RAW}" > $(pwd)/kubeconfig
+          chmod 600 $(pwd)/kubeconfig
           echo "KUBECONFIG=$(pwd)/kubeconfig" >> $GITHUB_ENV
       shell: bash
       env:
@@ -47,14 +51,16 @@ runs:
 
     - name: Setup cronjob
       run:  |
-        helm upgrade -i "${{ inputs.image_name }}-action-cronjob" city-of-helsinki/cronjob \
-        --namespace "${{ inputs.image_repository }}" \
+        helm upgrade action-cronjob city-of-helsinki/cronjob \
+        --install \
+        --namespace "${{ inputs.target_namespace }}" \
         --create-namespace \
-        --set image.repository="${{ inputs.image_repository}}" \
-        --set image.tag="${{ inputs.image_tag}}" \
+        --set image.repository="${{ inputs.image_repository }}" \
+        --set image.tag="${{ inputs.image_tag }}" \
         --set schedule="${{ inputs.schedule }}" \
         --set envSecret="${{ inputs.secret_name}}" \
-        --set envConfigMap="${{ inputs.configmap_name}}" \
+        --set envConfigMap="${{ inputs.configmap_name }}" \
         --set command="${{ inputs.command }}" \
-        --set args="${{ inputs.args }}"
+        --set args="${{ inputs.args }}" \
+        --set envs="${{ inputs.env }}"
       shell: bash
