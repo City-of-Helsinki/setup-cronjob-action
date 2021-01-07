@@ -22,6 +22,12 @@ inputs:
   schedule: 
     description: "Schedule of job to run. Remember to give time according Kubernetes node timezone (preferably UTC)"
     default: "0 0 * * *"
+  command:
+    description: "Command (Entrypoint in container image) to use. Should be given with array notation"
+    default: "['bin/sh']"
+  args:
+    description: "Arguments (Command in container image) to use. Should be given with array notation"
+    default: "['-c', 'date; echo Hello from the Kubernetes cluster']"
 runs:
   using: 'composite'
   steps:
@@ -46,7 +52,9 @@ runs:
         --create-namespace \
         --set image.repository="${{ inputs.image_repository}}" \
         --set image.tag="${{ inputs.image_tag}}" \
-        --set image.schedule="${{ inputs.schedule }}" \
-        --set image.envSecret="${{ inputs.secret_name}}" \
-        --set image.envConfigMap="${{ inputs.configmap_name}}"
+        --set schedule="${{ inputs.schedule }}" \
+        --set envSecret="${{ inputs.secret_name}}" \
+        --set envConfigMap="${{ inputs.configmap_name}}" \
+        --set command="${{ inputs.command }}" \
+        --set args="${{ inputs.args }}"
       shell: bash
