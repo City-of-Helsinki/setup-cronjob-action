@@ -45,7 +45,7 @@ runs:
 
     - name: Setup helm
       run: |
-          curl https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
+          curl -s https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
           helm repo add city-of-helsinki https://city-of-helsinki.github.io/managed-k8s-oidc-auth/
       shell: bash
 
