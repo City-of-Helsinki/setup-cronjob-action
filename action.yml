@@ -1,0 +1,66 @@
+name: 'Cronjob Setup'
+description: 'Action to set up cronjob to Kubernetes namespace'
+inputs:
+  kubeconfig_raw:
+    description: 'Kubeconfig as a text. Used to authenticate to Kubernetes cluster'
+    required: true
+  target_namespace:
+    description: "Namespace of where cronjob is deployed to"
+    required: true
+  secret_name:
+    description: 'Secret including environment variables for the job'
+    default: ''
+  configmap_name: 
+    description: "ConfigMap including environment variables for the job"
+    default: ''
+  image_repository: 
+    description: "Image to use in job"
+    default: "busybox"
+  image_tag: 
+    description: "Image tag to use in job"
+    default: "latest"
+  schedule: 
+    description: "Schedule of job to run. Remember to give time according Kubernetes node timezone (preferably UTC)"
+    default: "0 0 * * *"
+  command:
+    description: "Command (Entrypoint in container image) to use. Note notation with curly braces"
+    default: "{bin/sh}"
+  args:
+    description: "Arguments (Command in container image) to use. Note notation with curly braces"
+    default: "{-c,date; echo Hello from the Kubernetes cluster}"
+  envs:
+    description: "Direct environment variables to job. Note format (https://helm.sh/docs/intro/using_helm/#the-format-and-limitations-of---set). Key is `env.<desired_key>`"
+    default: ""
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup kubectl
+      run: |
+          echo "${KUBECONFIG_RAW}" > $(pwd)/kubeconfig
+          chmod 600 $(pwd)/kubeconfig
+          echo "KUBECONFIG=$(pwd)/kubeconfig" >> $GITHUB_ENV
+      shell: bash
+      env:
+        KUBECONFIG_RAW: ${{ inputs.kubeconfig_raw }}
+
+    - name: Setup helm
+      run: |
+          curl -s https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
+          helm repo add city-of-helsinki https://city-of-helsinki.github.io/managed-k8s-oidc-auth/
+      shell: bash
+
+    - name: Setup cronjob
+      run:  |
+        helm upgrade action-cronjob city-of-helsinki/cronjob \
+        --install \
+        --namespace "${{ inputs.target_namespace }}" \
+        --create-namespace \
+        --set image.repository="${{ inputs.image_repository }}" \
+        --set image.tag="${{ inputs.image_tag }}" \
+        --set schedule="${{ inputs.schedule }}" \
+        --set envSecret="${{ inputs.secret_name}}" \
+        --set envConfigMap="${{ inputs.configmap_name }}" \
+        --set command="${{ inputs.command }}" \
+        --set args="${{ inputs.args }}" \
+        --set envs="${{ inputs.env }}"
+      shell: bash
