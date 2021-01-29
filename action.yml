@@ -54,7 +54,6 @@ runs:
         helm upgrade action-cronjob city-of-helsinki/cronjob \
         --install \
         --namespace "${{ inputs.target_namespace }}" \
-        --create-namespace \
         --set image.repository="${{ inputs.image_repository }}" \
         --set image.tag="${{ inputs.image_tag }}" \
         --set schedule="${{ inputs.schedule }}" \
