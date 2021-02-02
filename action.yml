@@ -16,6 +16,12 @@ inputs:
   secret_name:
     description: 'Secret including environment variables for the job'
     default: ''
+  file_secret_name:
+    description: 'Secret including content mounted as files to the job'
+    default: ''
+  file_secret_mount_path:
+    description: 'Path to mount secrets from given file secret'
+    default: '/tmp/secrets'
   configmap_name: 
     description: "ConfigMap including environment variables for the job"
     default: ''
@@ -59,6 +65,8 @@ runs:
     - name: Setup kubectl
       run: |
           echo "SECRETNAME=${{ inputs.secret_name }}" >> $GITHUB_ENV
+          echo "FILESECRETNAME=${{ inputs.file_secret_name }}" >> $GITHUB_ENV
+
           echo "${KUBECONFIG_RAW}" > $(pwd)/kubeconfig
           chmod 600 $(pwd)/kubeconfig
           echo "KUBECONFIG=$(pwd)/kubeconfig" >> $GITHUB_ENV
@@ -80,6 +88,14 @@ runs:
           if [[ -n "${SECRETNAME}" ]]; then 
             echo "Using secret ${SECRETNAME}"
             echo "SECRETNAME=${SECRETNAME}" >> $GITHUB_ENV
+          fi
+        fi
+        if [[ "${{ inputs.file_secret_name }}" == -* ]]; then
+          echo "Trying to find file secret with suffix ${{ inputs.file_secret_name }} to job"
+          FILESECRETNAME=$(kubectl get secret -n "${{ inputs.target_namespace }}" -l release -o json | jq -r '.items[] | .metadata.labels.release as $release | select(.metadata.name == $release+"${{ inputs.file_secret_name }}") | .metadata.name')
+          if [[ -n "${FILESECRETNAME}" ]]; then 
+            echo "Using secret ${FILESECRETNAME}"
+            echo "FILESECRETNAME=${FILESECRETNAME}" >> $GITHUB_ENV
           fi
         fi
       shell: bash
@@ -104,6 +120,8 @@ runs:
         --set image.tag="${{ inputs.image_tag }}" \
         --set schedule="${{ inputs.schedule }}" \
         --set envSecret="${{ env.SECRETNAME }}" \
+        --set fileSecret.name="${{ env.FILESECRETNAME }}" \
+        --set fileSecret.mountPath="${{ inputs.file_secret_mount_path }}"
         --set envConfigMap="${{ inputs.configmap_name }}" \
         --set command="${{ inputs.command }}" \
         --set args="${{ inputs.args }}" \
