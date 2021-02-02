@@ -1,6 +1,12 @@
 name: 'Cronjob Setup'
 description: 'Action to set up cronjob to Kubernetes namespace'
 inputs:
+  name: 
+    description: 'Name to use in job. Mandatory if multiple cronjobs in one namespace'
+    default: "action-cronjob"
+  single_run:
+    description: 'If true, creates single job instaed of cronjob. This allows testing of job easier'
+    default: "false"
   kubeconfig_raw:
     description: 'Kubeconfig as a text. Used to authenticate to Kubernetes cluster'
     required: true
@@ -10,6 +16,12 @@ inputs:
   secret_name:
     description: 'Secret including environment variables for the job'
     default: ''
+  file_secret_name:
+    description: 'Secret including content mounted as files to the job'
+    default: ''
+  file_secret_mount_path:
+    description: 'Path to mount secrets from given file secret'
+    default: '/tmp/secrets'
   configmap_name: 
     description: "ConfigMap including environment variables for the job"
     default: ''
@@ -31,11 +43,30 @@ inputs:
   envs:
     description: "Direct environment variables to job. Note format (https://helm.sh/docs/intro/using_helm/#the-format-and-limitations-of---set). Key is `env.<desired_key>`"
     default: ""
+  request_cpu:
+    description: "CPU request to created pod"
+    default: "100m"
+  request_memory:
+    description: "Memory request to created pod"
+    default: "256Mi"
+  limit_cpu:
+    description: "CPU limit to created pod"
+    default: "500m"
+  limit_memory:
+    description: "Memory limit to created pod"  
+    default: "1024Mi"
+  max_duration:
+    description: "Jobs max duration"
+    default: "300"
+
 runs:
   using: 'composite'
   steps:
     - name: Setup kubectl
       run: |
+          echo "SECRETNAME=${{ inputs.secret_name }}" >> $GITHUB_ENV
+          echo "FILESECRETNAME=${{ inputs.file_secret_name }}" >> $GITHUB_ENV
+
           echo "${KUBECONFIG_RAW}" > $(pwd)/kubeconfig
           chmod 600 $(pwd)/kubeconfig
           echo "KUBECONFIG=$(pwd)/kubeconfig" >> $GITHUB_ENV
@@ -49,17 +80,55 @@ runs:
           helm repo add city-of-helsinki https://city-of-helsinki.github.io/managed-k8s-oidc-auth/
       shell: bash
 
+    - name: Find secret name dynamically
+      run: |
+        if [[ "${{ inputs.secret_name }}" == -* ]]; then
+          echo "Trying to find secret with suffix ${{ inputs.secret_name }} to job"
+          SECRETNAME=$(kubectl get secret -n "${{ inputs.target_namespace }}" -l release -o json | jq -r '.items[] | .metadata.labels.release as $release | select(.metadata.name == $release+"${{ inputs.secret_name }}") | .metadata.name')
+          if [[ -n "${SECRETNAME}" ]]; then 
+            echo "Using secret ${SECRETNAME}"
+            echo "SECRETNAME=${SECRETNAME}" >> $GITHUB_ENV
+          fi
+        fi
+        if [[ "${{ inputs.file_secret_name }}" == -* ]]; then
+          echo "Trying to find file secret with suffix ${{ inputs.file_secret_name }} to job"
+          FILESECRETNAME=$(kubectl get secret -n "${{ inputs.target_namespace }}" -l release -o json | jq -r '.items[] | .metadata.labels.release as $release | select(.metadata.name == $release+"${{ inputs.file_secret_name }}") | .metadata.name')
+          if [[ -n "${FILESECRETNAME}" ]]; then 
+            echo "Using secret ${FILESECRETNAME}"
+            echo "FILESECRETNAME=${FILESECRETNAME}" >> $GITHUB_ENV
+          fi
+        fi
+      shell: bash
+    
+    - name: Remove old job if testing
+      run: |
+        CONDITION=${{ inputs.single_run }}
+        if [[ "${CONDITION,,}" == "true" ]]; then
+          echo "Removing old job ${{ inputs.name }} to allow new to run"
+          helm uninstall ${{ inputs.name }} --namespace "${{ inputs.target_namespace }}" || true
+        fi
+      shell: bash
+
     - name: Setup cronjob
       run:  |
-        helm upgrade action-cronjob city-of-helsinki/cronjob \
+        echo "Installing ${{ inputs.name }}"
+        helm upgrade ${{ inputs.name }} city-of-helsinki/cronjob \
         --install \
         --namespace "${{ inputs.target_namespace }}" \
+        --set singleRun="${{ inputs.single_run }}" \
         --set image.repository="${{ inputs.image_repository }}" \
         --set image.tag="${{ inputs.image_tag }}" \
         --set schedule="${{ inputs.schedule }}" \
-        --set envSecret="${{ inputs.secret_name}}" \
+        --set envSecret="${{ env.SECRETNAME }}" \
+        --set fileSecret.name="${{ env.FILESECRETNAME }}" \
+        --set fileSecret.mountPath="${{ inputs.file_secret_mount_path }}"
         --set envConfigMap="${{ inputs.configmap_name }}" \
         --set command="${{ inputs.command }}" \
         --set args="${{ inputs.args }}" \
-        --set envs="${{ inputs.env }}"
+        --set envs="${{ inputs.env }}" \
+        --set activeDeadlineSeconds="${{ inputs.max_duration }}" \
+        --set resources.requests.cpu="${{ inputs.request_cpu }}" \
+        --set resources.requests.memory="${{ inputs.request_memory }}" \
+        --set resources.limits.cpu="${{ inputs.limit_cpu }}" \
+        --set resources.limits.memory="${{ inputs.limit_memory }}"
       shell: bash
