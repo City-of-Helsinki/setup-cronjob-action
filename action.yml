@@ -121,7 +121,7 @@ runs:
         --set schedule="${{ inputs.schedule }}" \
         --set envSecret="${{ env.SECRETNAME }}" \
         --set fileSecret.name="${{ env.FILESECRETNAME }}" \
-        --set fileSecret.mountPath="${{ inputs.file_secret_mount_path }}"
+        --set fileSecret.mountPath="${{ inputs.file_secret_mount_path }}" \
         --set envConfigMap="${{ inputs.configmap_name }}" \
         --set command="${{ inputs.command }}" \
         --set args="${{ inputs.args }}" \
