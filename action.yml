@@ -31,9 +31,6 @@ inputs:
   image_tag: 
     description: "Image tag to use in job"
     default: "latest"
-  image_pull_secrets_name: 
-    description: "Secrets name for image pull."
-    default: ""
   schedule: 
     description: "Schedule of job to run. Remember to give time according Kubernetes node timezone (preferably UTC)"
     default: "0 0 * * *"
