@@ -31,6 +31,9 @@ inputs:
   image_tag: 
     description: "Image tag to use in job"
     default: "latest"
+  image_pull_secrets: 
+    description: "Secrets for image pull. Note notation with curly braces"
+    default: "[]"
   schedule: 
     description: "Schedule of job to run. Remember to give time according Kubernetes node timezone (preferably UTC)"
     default: "0 0 * * *"
@@ -118,6 +121,7 @@ runs:
         --set singleRun="${{ inputs.single_run }}" \
         --set image.repository="${{ inputs.image_repository }}" \
         --set image.tag="${{ inputs.image_tag }}" \
+        --set image.imagePullSecrets="${{ inputs.image_pull_secrets }}" \
         --set schedule="${{ inputs.schedule }}" \
         --set envSecret="${{ env.SECRETNAME }}" \
         --set fileSecret.name="${{ env.FILESECRETNAME }}" \
