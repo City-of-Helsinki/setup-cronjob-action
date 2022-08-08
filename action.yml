@@ -28,6 +28,9 @@ inputs:
   image_repository: 
     description: "Image to use in job"
     default: "busybox"
+  image_pull_secrets_name: 
+    description: "Secrets name for image pull."
+    default: ""
   image_tag: 
     description: "Image tag to use in job"
     default: "latest"
