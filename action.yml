@@ -31,9 +31,6 @@ inputs:
   image_tag: 
     description: "Image tag to use in job"
     default: "latest"
-  image_pull_secrets_name: 
-    description: "Secrets name for image pull."
-    default: ""
   schedule: 
     description: "Schedule of job to run. Remember to give time according Kubernetes node timezone (preferably UTC)"
     default: "0 0 * * *"
@@ -101,12 +98,6 @@ runs:
             echo "FILESECRETNAME=${FILESECRETNAME}" >> $GITHUB_ENV
           fi
         fi
-        if [ -n "${{ inputs.image_pull_secrets_name }}" ]; then
-          echo "Use pull secrest by name"
-          echo "IMAGEPULLSECRETS={ name=${{inputs.image_pull_secrets_name}} }" >> $GITHUB_ENV
-        else
-          echo "IMAGEPULLSECRETS=[]" >> $GITHUB_ENV
-        fi
       shell: bash
     
     - name: Remove old job if testing
@@ -127,7 +118,6 @@ runs:
         --set singleRun="${{ inputs.single_run }}" \
         --set image.repository="${{ inputs.image_repository }}" \
         --set image.tag="${{ inputs.image_tag }}" \
-        --set imagePullSecrets=${{ env.IMAGEPULLSECRETS }} \
         --set schedule="${{ inputs.schedule }}" \
         --set envSecret="${{ env.SECRETNAME }}" \
         --set fileSecret.name="${{ env.FILESECRETNAME }}" \
