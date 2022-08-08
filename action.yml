@@ -101,12 +101,6 @@ runs:
             echo "FILESECRETNAME=${FILESECRETNAME}" >> $GITHUB_ENV
           fi
         fi
-        if [ -n "${{ inputs.image_pull_secrets_name }}" ]; then
-          echo "Use pull secrest by name"
-          echo "IMAGEPULLSECRETS={ name=${{inputs.image_pull_secrets_name}} }" >> $GITHUB_ENV
-        else
-          echo "IMAGEPULLSECRETS=[]" >> $GITHUB_ENV
-        fi
       shell: bash
     
     - name: Remove old job if testing
@@ -127,7 +121,7 @@ runs:
         --set singleRun="${{ inputs.single_run }}" \
         --set image.repository="${{ inputs.image_repository }}" \
         --set image.tag="${{ inputs.image_tag }}" \
-        --set imagePullSecrets=${{ env.IMAGEPULLSECRETS }} \
+        --set imagePullSecrets[0].name="${{ inputs.image_pull_secrets_name }}" \
         --set schedule="${{ inputs.schedule }}" \
         --set envSecret="${{ env.SECRETNAME }}" \
         --set fileSecret.name="${{ env.FILESECRETNAME }}" \
