@@ -118,6 +118,7 @@ runs:
         --set singleRun="${{ inputs.single_run }}" \
         --set image.repository="${{ inputs.image_repository }}" \
         --set image.tag="${{ inputs.image_tag }}" \
+        --set imagePullSecrets[0].name="${{ inputs.image_pull_secrets_name }}" \
         --set schedule="${{ inputs.schedule }}" \
         --set envSecret="${{ env.SECRETNAME }}" \
         --set fileSecret.name="${{ env.FILESECRETNAME }}" \
